@@ -424,6 +424,24 @@ if (isset($_POST['add'])) {
 
 		$db->query("UPDATE " . USERPREFIX . "_users set news_num=news_num+1 where user_id='{$author['user_id']}'");
 
+		$vote_num = rand( 3, 40 ); // это случайное число количества голосов от 3 до 40 можно изменить
+		$rating_all = 0;
+		$whereArray = array( "`name` != '{$author['name']}'" );
+		$ratingArray = array( '-1', '1' );
+
+		for ( $i = 1; $i <= $vote_num; $i++  ) {
+			$where = implode( ' AND ', $whereArray );
+			$userR = $db->super_query("SELECT `name` FROM " . USERPREFIX . "_users WHERE {$where} ORDER BY rand() LIMIT 1");
+			$whereArray[] = "`name` != '{$userR['name']}'";
+
+			$rating = $ratingArray[rand( 0, 1 )];
+			$rating_all = $rating_all + $rating;
+
+			$db->query("INSERT INTO " . PREFIX . "_logs ( `news_id`, `member`, `ip`, `rating` ) values ('{$curId}', '{$userR['name']}', '{$faker->ipv4}', '{$rating}')");
+
+		}
+		$db->query("UPDATE " . USERPREFIX . "_post_extras SET `rating` = '{$rating_all}', `vote_num` = '{$vote_num}' WHERE `news_id` = '{$curId}'");
+
 	}
 	clear_cache();
 
