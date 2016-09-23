@@ -424,24 +424,99 @@ if (isset($_POST['add'])) {
 
 		$db->query("UPDATE " . USERPREFIX . "_users set news_num=news_num+1 where user_id='{$author['user_id']}'");
 
-		$vote_num = rand( 3, 40 ); // это случайное число количества голосов от 3 до 40 можно изменить
+		// -> RATING
+		$vote_num = rand( 70, 109 ); // это случайное число количества голосов рейтинга от 3 до 40 можно изменить
 		$rating_all = 0;
 		$whereArray = array( "`name` != '{$author['name']}'" );
-		$ratingArray = array( '-1', '1' );
+		$ratingArray = array( '-1', '1', '1' );
 
 		for ( $i = 1; $i <= $vote_num; $i++  ) {
 			$where = implode( ' AND ', $whereArray );
 			$userR = $db->super_query("SELECT `name` FROM " . USERPREFIX . "_users WHERE {$where} ORDER BY rand() LIMIT 1");
 			$whereArray[] = "`name` != '{$userR['name']}'";
 
-			$rating = $ratingArray[rand( 0, 1 )];
+			$rating = $ratingArray[rand( 0, 2 )];
 			$rating_all = $rating_all + $rating;
 
 			$db->query("INSERT INTO " . PREFIX . "_logs ( `news_id`, `member`, `ip`, `rating` ) values ('{$curId}', '{$userR['name']}', '{$faker->ipv4}', '{$rating}')");
 
 		}
 		$db->query("UPDATE " . USERPREFIX . "_post_extras SET `rating` = '{$rating_all}', `vote_num` = '{$vote_num}' WHERE `news_id` = '{$curId}'");
+		// # RATING
 
+		// -> COMMENTS
+		$comm_num = rand( 10, 45 ); // это случайное число количества комментариев от 10 до 45 можно изменить
+		for ( $i = 1; $i <= $comm_num; $i++  ) {
+			$userC = $db->super_query("SELECT `email`, `name`, `user_id` FROM " . USERPREFIX . "_users ORDER BY rand() LIMIT 1");
+
+			$dateC = $dateTime->format( 'Y-m-d H:i:s' );
+			$textC = $db->safesql( $faker->realText( rand( 50, 150 ) ) );
+			$ipv4C = $faker->ipv4;
+
+			$parent = 0;
+			$parentR = rand( 0, 2 );
+			if ( $parentR != 0 AND $i > 1 ) {
+				$parentC = $db->super_query("SELECT `id` FROM " . PREFIX . "_comments WHERE `post_id` = '{$curId}' ORDER BY rand() LIMIT 1");
+				$parent = ( ! $parentC['id'] ) ? 0 : $parentC['id'];
+
+			}
+
+			$db->query("INSERT INTO " . PREFIX . "_comments ( 
+															`post_id`, 
+															`user_id`, 
+															`date`, 
+															`autor`, 
+															`email`, 
+															`text`, 
+															`ip`, 
+															`is_register`, 
+															`approve`, 
+															`rating`, 
+															`vote_num`, 
+															`parent` 
+																) values (
+																	'{$curId}', 
+																	'{$userC['user_id']}', 
+																	'{$dateC}', 
+																	'{$userC['name']}', 
+																	'{$userC['email']}', 
+																	'{$textC}', 
+																	'{$ipv4C}', 
+																	'1', 
+																	'1', 
+																	'0', 
+																	'0', 
+																	'{$parent}'  
+																		)");
+
+				$cID = $db->insert_id();
+
+				// -> COMMENTS_RATING
+				$vote_num = rand( 1, 50 ); // это случайное число количества голосов рейтинга комментария от 1 до 50 можно изменить
+				$rating_all = 0;
+				$whereArray = array( "`name` != '{$userC['name']}'" );
+				$ratingArray = array( '-1', '1' );
+
+				for ( $i2 = 1; $i2 <= $vote_num; $i2++  ) {
+					$where = implode( ' AND ', $whereArray );
+					$userR = $db->super_query("SELECT `name` FROM " . USERPREFIX . "_users WHERE {$where} ORDER BY rand() LIMIT 1");
+					$whereArray[] = "`name` != '{$userR['name']}'";
+
+					$rating = $ratingArray[rand( 0, 1 )];
+					$rating_all = $rating_all + $rating;
+
+					$db->query("INSERT INTO " . PREFIX . "_comment_rating_log ( `c_id`, `member`, `ip`, `rating` ) values ('{$cID}', '{$userR['name']}', '{$faker->ipv4}', '{$rating}')");
+
+				}
+				$db->query("UPDATE " . PREFIX . "_comments SET `rating` = '{$rating_all}', `vote_num` = '{$vote_num}' WHERE `id` = '{$cID}'");
+				// # COMMENTS_RATING
+
+		}
+		$db->query("UPDATE " . PREFIX . "_post SET `comm_num` = '{$comm_num}' WHERE `id` = '{$curId}'");
+
+		$news_read = $comm_num + rand( 1000, 100000 );
+		$db->query("UPDATE " . USERPREFIX . "_post_extras SET `news_read` = '{$news_read}' WHERE `news_id` = '{$curId}'");
+		// # COMMENTS
 	}
 	clear_cache();
 
